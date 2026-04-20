@@ -79,16 +79,16 @@ CPU密集型（CPU-bound）
 IO密集型（I/O-bound）
 
 ### 多线程、多进程、多协程的对比
-![alt text](figure/多线程多进程多协程的对比.png)
-![alt text](figure/如何选择多线程多进程多协程.png)
+![alt text](figure/Python基础/多线程多进程多协程的对比.png)
+![alt text](figure/Python基础/如何选择多线程多进程多协程.png)
 
 ### Python速度慢的罪魁祸首，全局解释器锁GIL
 1. Python速度慢的两大原因
 * 动态类型语言，边解释边执行
 * GIL，无法利用多核CPU并发执行
-![alt text](figure/GIL是什么.png)
-![alt text](figure/为什么有GIL这个东西.png)
-![alt text](figure/怎样规避GIL带来的限制.png)
+![alt text](figure/Python基础/GIL是什么.png)
+![alt text](figure/Python基础/为什么有GIL这个东西.png)
+![alt text](figure/Python基础/怎样规避GIL带来的限制.png)
 
 ### 使用多线程，Python爬虫被加速10倍
 Python创建多线程的方法
@@ -109,8 +109,8 @@ t.join()
 ```
 
 ### Python实现生产者消费者爬虫
-![alt text](figure/多组件的Pipeline技术架构.png)
-![alt text](figure/生产者消费者爬虫的架构.png)
+![alt text](figure/Python基础/多组件的Pipeline技术架构.png)
+![alt text](figure/Python基础/生产者消费者爬虫的架构.png)
 3. 多线程数据通信的 queue.Queue
 queue.Queue可以用于多线程之间的、线程安全的数据通信
 ```
