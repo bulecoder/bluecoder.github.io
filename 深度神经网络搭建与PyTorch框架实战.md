@@ -103,3 +103,112 @@ NumPy数组转换为张量
 ### 张量的索引操作
 对于`t = torch.randint(1, 10, (5, 5))`
 * 简单行列索引，格式：张量对象[行， 列]  （eg，获取第2行数据 t[1] 或 t[1,:]，这里:表示所有列）
+* 列表索引，前边的表示行，后边的表示列   （eg，t1[[1, 3], [2, 4]]表示取(1, 2)和(3, 4)两个位置的元素;t1[[[0], [1]], [1, 2]]表示获取第0, 1行的1, 2列的4个元素）
+* 范围索引 （eg, t1[:3, :2]表示前3行前2列，t1[1:, :2]表示第2行到最后一行前2列的数据，t1[1::2, ::2]表示所有奇数行偶数列的数据）
+* 布尔索引，t1[torch.tensor([True, False, False, True], :)]（eg, data[data[:, 2] > 5]表示第三列大于5的行数据，data[:, data[1]>5]表示第2行大于5的列数据）
+* 多维索引,（eg, 获取0轴上的第一个数据data[0, :, :], 获取1轴上的第一个数据data[:, 0, :]，获取2轴上的第一个数据data[:, :, 0]）
+
+### 张量的形状操作
+t1.shape[0]获取第一个维度，t1.shape[-1]获取最后一个维度
+* reshape函数，张量数据不变的情况下改变数据的维度，将其转换成指定的形状，不改变数据的顺序
+<br><br>
+* unsqueeze函数，升维，在指定维度插入一个大小为1的新维度。
+    ```
+    a=torch.randn(1,3)
+    print(a.shape)
+    b=torch.unsqueeze(a,0)  或 b = a.unsqueeze(0)
+    print(b.shape)
+    c=torch.unsqueeze(a,1)  或 c = a.unsqueeze(1)
+    print(c.shape)
+    d=torch.unsqueeze(a,2)  或 d = a.unsqueeze(2)
+    print(d.shape)
+    ```
+* squeeze函数，降维，移除所有大小为1的维度，或者移除指定维度大小为1的维度
+    ```
+    x = torch.zeros(1, 3, 1, 5)    # shape: [1, 3, 1, 5]
+
+    y = x.squeeze()               # 删除所有为1的维度 → shape: [3, 5]
+    z = x.squeeze(0)              # 删除第0维（1） → shape: [3, 1, 5]
+    w = x.squeeze(1)              # 尝试删除第1维（3），不成功 → shape: [1, 3, 1, 5]
+
+    print(y.shape)  # torch.Size([3, 5])
+    print(z.shape)  # torch.Size([3, 1, 5])
+    print(w.shape)  # torch.Size([1, 3, 1, 5])
+    ```
+<br><br>
+
+* transpose函数，交换张量形状的指定维度，一次只能交换2个维度，参数是需要交换的维度，不改变原始张量，返回新的张量
+    ```
+    t1 = torch.randint(1, 10, size=(2, 3, 4))
+    t2 = t1.tranpose(0 ,2)
+
+    t1的shape还是(2, 3, 4)
+    t2的shape是(4, 3, 2)
+    ```
+* permute函数，一次交换更多维度，位置参数是新维度顺序的索引
+    ```
+        t1 = torch.randint(1, 10, size=(2, 3, 4))
+        t3 = t1.permute(2, 0, 1)
+        t3的shape是（4, 2, 3）
+    ```
+<br><br>
+
+* view函数，用于修改连续的张量（在内存中的存储顺序和在张量中的逻辑顺序需要一致），张量经过transpose或者permute处理以后就无法使用view进行操作
+    ```
+    t1 = torch.randint(1, 10, size=(2, 3))
+    t2 = t1.view(3, 2)   # t2的shape变成了(3, 2)同时存储顺序不变
+
+    ```
+
+* contiguous函数，把不连续的张量->连续的张量，即基于张量中显示顺序修改内存中的存储顺序。is_contiguous()判断张量是否连续
+    ```
+    t3 = t1.tanspose(0, 1)  # 交换t1的两个维度,t3的shape变为(3, 2)
+    t3.is_contiguous() # False，不连续，无法使用view函数
+    t5 = t3.contiguous().view(2, 3) # 将t3处理为连续张量再使用view函数即可，t5的shape是(2, 3)
+    ```
+
+### 张量拼接操作
+* cat函数，将多个张量根据指定的维度拼接起来，不改变维度数（除了拼接的那个维度外，其他维度保持一致）
+    ```
+    t1 = torch.randint(1, 10, (2, 3))
+    t2 = torch.randint(1, 10, (5, 3))
+    t3 = torch.cat([t1, t2], dim=0)  # t3的shape是(7, 3)
+    ```
+
+* stack函数，在一个新的维度上连接一系列张量，会增加一个维度，所有输入张量形状必须完全相同
+    ```
+    # 两个形状完全相同的 1D 张量：(3,)
+    a = torch.tensor([1, 2, 3])
+    b = torch.tensor([4, 5, 6])
+    print("a的形状：", a.shape)  # torch.Size([3])
+    print("b的形状：", b.shape)  # torch.Size([3])
+
+    # 1. 在 dim=0（新维度）上拼接
+    stack_dim0 = torch.stack([a, b], dim=0)
+    print("dim=0拼接后形状：", stack_dim0.shape)  # torch.Size([2, 3])
+    print("dim=0拼接后内容：\n", stack_dim0)
+    # 输出：
+    # tensor([[1, 2, 3],
+    #         [4, 5, 6]])
+
+    # 2. 在 dim=1（新维度）上拼接
+    stack_dim1 = torch.stack([a, b], dim=1)
+    print("dim=1拼接后形状：", stack_dim1.shape)  # torch.Size([3, 2])
+    print("dim=1拼接后内容：\n", stack_dim1)
+    # 输出：
+    # tensor([[1, 4],
+    #         [2, 5],
+    #         [3, 6]])
+
+
+    # 高维例子
+    # 创建4个视角的图像数据：每个形状都是 (8, 3, 224, 224)
+    view1 = torch.randn(8, 3, 224, 224)  # 视角1
+    view2 = torch.randn(8, 3, 224, 224)  # 视角2
+    view3 = torch.randn(8, 3, 224, 224)  # 视角3
+    view4 = torch.randn(8, 3, 224, 224)  # 视角4
+    # 在 dim=1 上插入新的视角维度
+    stacked_dim1 = torch.stack([view1, view2, view3, view4], dim=1)
+    print("dim=1 stack后形状：", stacked_dim1.shape)  # torch.Size([8, 4, 3, 224, 224])
+    ```
+
