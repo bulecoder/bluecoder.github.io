@@ -332,4 +332,273 @@ $$\text{smooth}_{L_1}(x)=
 \end{cases}$$
 
 ### 网络优化方法
-梯度下降算法
+梯度下降算法，一种寻找损失函数最小化的方法，梯度的方向是函数增长速度最快的方向，梯度的反方向就是函数减少最快的方向  
+$$w_{ij}^{new} = w_{ij}^{old} - \eta \frac{\partial E}{\partial w_{ij}}$$
+学习率也需要随着训练的进行而变化  
+
+模型训练基础概念：
+* Epoch：使用全部数据对模型进行一次完整训练，训练轮次
+* Batch_size：使用训练集中的小部分样本对模型权重进行一次反向传播的参数更新，每次训练每批次样本数量
+* Iteration：使用一个Batch数据对模型进行一次参数更新的过程  
+
+| 梯度下降方式 | Training Set Size | Batch Size | Number of Batches |
+| ------------ | ----------------- | ---------- | ----------------- |
+| BGD          | $N$               | $N$        | $1$               |
+| SGD          | $N$               | $1$        | $N$               |
+| Mini-Batch   | $N$               | $B$        | $\dfrac{N}{B}+1$  |
+注：上表中Mini-Batch的Batch个数为 N/B+1是针对未整除的情况，整除则是 N/B。
+
+#### 反向传播（BP算法）
+前向传播：数据输入到神经网络中，逐层向前传播，一直运算到输出层为止  
+反向传播（Back Propagation）：利用损失函数 ERROR值，从后往前，结合梯度下降法，一次求各个参数的偏导，并进行参数更新
+* 反向传播算法利用链式法则对神经网络中的各个节点的权重进行更新
+* 多路径求导，当x对损失L的影响不止一条通路时，路径内链式相乘，路径间梯度相加
+<br><br>
+
+梯度下降优化算法中，可能会碰到以下情况：
+1. 碰到平缓区域，梯度值较小，参数优化变慢
+2. 碰到“鞍点”，梯度值为0，参数无法优化
+3. 碰到局部最小值，参数不是最优  
+对于上述问题，有一些对梯度下降算法的优化算法，例如 动量法Momentum、自适应学习率AdaGrad、RMSprop、自适应动量法Adam等，这些优化方法需要用到指数移动加权平均
+
+#### 指数加权平均
+最常见的算术平均指的是将所有数加起来除以数的个数，每个数的权重是相同的。指数加权平均指的是给每个数赋予不同的权重求平均数。移动平均数，指的是计算最近邻的 N 个数来获得平均数。  
+指数移动加权平均是参考各数值，并且各数值的权重都不同，距离越远的数字对平均数计算的贡献越小（权重越小），距离越近对平均数的计算贡献越大（权重越大）。
+$$
+S_t =
+\begin{cases}
+Y_1, & t = 0 \\
+\beta \cdot S_{t-1} + (1-\beta) \cdot Y_t, & t > 0
+\end{cases}
+$$
+
+- $S_t$ 表示指数加权平均值；
+- $Y_t$ 表示 $t$ 时刻的观测值；
+- $\beta$ 为权重调节系数，该值越大，平滑后的平均值越平缓。一般设置为0.9。
+
+#### 动量算法Momentum（带动量的SGD，是梯度序列的指数加权平均EWMA在梯度上的工程应用）
+梯度计算公式：
+$$
+s_t = \beta \cdot s_{t-1} + (1-\beta) \cdot g_t
+$$
+参数更新公式：
+$$
+w_t = w_{t-1} - \eta \cdot s_t
+$$
+
+#### 自适应梯度算法AdaGrad
+通过对不同的参数分量使用不同的学习率，AdaGrad的学习率总体会逐渐减小  
+梯度平方累计项：
+$$
+s_t = s_{t-1} + g_t \odot g_t
+$$
+参数更新公式：
+$$
+w_t = w_{t-1} - \frac{\eta}{\sqrt{s_t + \sigma}} \cdot g_t
+$$
+
+#### RMSProp算法是对AdaGrad的优化
+主要的不同是，使用只是加权平均梯度替换历史梯度的平方和（RMSProp将累计方式换成了指数加权平均EWMA）  
+梯度平方指数加权平均公式：
+$$
+s_t = \beta s_{t-1} + (1-\beta) g_t \odot g_t
+$$
+参数更新公式
+$$
+w_t = w_{t-1} - \frac{\eta}{\sqrt{s_t + \sigma}} \cdot g_t
+$$
+
+#### Adam（自适应矩估计，将Momentum和RMSProp算法结合在一起）
+修正梯度：使用梯度的指数加权平均  
+修正学习率：使用梯度平方的指数加权平均  
+新增偏差校正：解决训练初期矩估计的初始值偏差问题，让优化更稳定  
+Adam结合了Momentum和RMSProp优点的自适应学习率算法，计算梯度的一阶矩（平均值）和二阶矩（梯度的方差）的自适应估计，从而动态调整学习率。
+梯度与矩估计计算公式：
+一阶矩估计（梯度的指数加权平均，对应Momentum动量项）
+$$
+m_t = \beta_1 m_{t-1} + (1-\beta_1) g_t
+$$
+
+二阶矩估计（梯度平方的指数加权平均，对应RMSProp累计项）
+$$
+s_t = \beta_2 s_{t-1} + (1-\beta_2) g_t^2
+$$
+
+偏差校正（解决训练初期矩估计的初始值偏差）
+$$
+\hat{m}_t = \frac{m_t}{1-\beta_1^t}, \quad \hat{s}_t = \frac{s_t}{1-\beta_2^t}
+$$
+参数更新公式：
+$$
+w_t = w_{t-1} - \frac{\eta}{\sqrt{\hat{s}_t} + \epsilon} \cdot \hat{m}_t
+$$
+其中，$m_t$ 是梯度的一阶矩估计，$s_t$ 是梯度的二阶矩估计，$\hat{m}_t$ 和 $\hat{s}_t$ 是偏差校正后的估计。
+
+### 学习率优化（学习率衰减策略）
+在训练神经网络时，学习率会随着训练而变化。这主要是因为在训练后期，如果学习率过高会造成loss的震荡，如果学习率过低又会造成收敛过慢的情况。
+1. 等间隔学习率衰减  
+scheduler_lr = optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
+```
+optimizer = optim.SGD([w], lr=LR, momentum=0.9)
+# step_size：间隔的轮数，即多少轮调整一次学习率
+# gamma：学习率衰减系数，即 lr新 = lr旧 * gamma
+scheduler_lr = optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
+
+for epoch in range(max_epoch):
+    for i in range(iteration):
+        loss = (w*x - y_true) ** 2 / 2.0  # 损失函数
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+    scheduler_lr.step()     # 每个epoch所有iteration结束以后，更新学习率
+```
+
+2. 指定间隔学习率衰减
+optim.lr_scheduler.MultiStepLR(optimizer, milestones, gamma=0.1)
+```
+optimizer = optim.SGD([w], lr=LR, momentum=0.9)
+# milstones：设定调整轮次
+# gamma：调整系数s
+milestones = [50, 125, 160]
+scheduler_lr = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=0.5)
+
+```
+
+3. 按指数学习率衰减
+optim.lr_scheduler.ExponentialLR(optimizer, gamma)
+```
+optimizer = optim.SGD([w], lr=LR, momentum=0.9)
+# gamma：指数的底， lr = lr * gamma^epoch
+scheduler_lr = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.95)
+
+```
+
+### 正则化
+* 在设计机器学习算法时希望在新样本上的泛化能力强，许多机器学习算法都采用相关的策略来减小测试误差，这些策略被统称为正则化。  
+* 神经网络强大的表示能力经常遇到过拟合，所以需要使用不同形式的正则化策略。
+* 目前在深度学习中使用较多的策略有 范数惩罚（L1范数、L2范数），DropOut，特殊的网络层等。
+
+1. Dropout（随机失活）正则化
+在神经网络中模型参数越多，在数据量不足的情况下，很容易过拟合。
+* 在训练过程中，Dropout是让神经元以超参数p的概率停止工作或者激活被置为0，未被置为0的进行缩放，缩放比例为 1/(1-p)。训练过程可以认为是对完整的神经网络的一些子集进行训练，每次基于输入数据只更新子网络的参数。
+* 在测试过程汇总，随机失活不起作用。
+* 实际应用中通常在全连接层（激活函数后）添加Dropout层。
+```
+linear1 = nn.Linear(4, 5)
+l1 = liear1(t1)
+
+output = torch.relu(l1)
+
+dropout = nn.Dropout(p=0.1)
+
+d1 = dropout(output)
+```
+
+2. 批量归一化（Batch Normalization）
+先对数据标准化，再对数据重构（缩放+平移）：
+$$
+f(x) = \lambda \cdot \frac{x - \mathrm{E}(x)}{\sqrt{\mathrm{Var}(x) + \epsilon}} + \beta
+$$
+```
+input_2d = torch.randn(size=(1, 2, 3, 4))  # 1张图片，2个通道，3行4列像素点
+
+# 参1：输入特征数=图片通道数
+# 参2：噪声值（小常数），默认1e-5
+# 参3：动量值，用于计算移动平均统计量的动量值
+# 参4：表示使用可学习的变换参数（λ，β）对归一化后的参数进行缩放和平移（仿射变换）
+bn2d = nn.BatchNorm2d(num_features=2, eps=1e-5, momentum=0.1, affine=True)
+```
+<br><br>
+
+## 卷积神经网络CNN
+卷积层的作用就是用来自动学习、提取图像的特征  
+CNN网络主要由三部分构成，卷积层、池化层和全连接层：
+1. 卷积层负责提取图像中的局部特征
+2. 池化层用来大幅降低参数量级（降维）
+3. 全连接层用来输出想要的结果
+
+* 卷积运算本质上是卷积核和输入数据的局部区域间做点积。
+* Padding（填充）用于处理卷积时图像边缘的像素，目的是在输入图像的边界周围添加额外的像素（通常是零）从而解决卷积操作时边缘信息丢失的问题。作用：保持空间维度、保留边缘信息、提高性能
+* Stride（步长）是卷积核在图像上滑动时的步伐长度，即每次卷积时卷积核在图像中向右或向下移动的像素数。作用：降低计算复杂度、增大感受野
+
+* 多通道卷积计算，输入有多少个通道，卷积核需要有相同的通道数，每个卷积核通道与对应的输入图像的各个通道进行卷积，将每个通道的卷积结果按位相加得到最终的特征图。
+* 多卷积核卷积计算，一个卷积核会得到一个特征图
+*  特征图大小（N × N）的计算（输入图像大小 W × W，卷积核大小 F × F，Stride：S，Padding：P，输出图像大小： P × P）：
+$$N = \frac{W - F + 2P}{S} + 1$$
+```
+# 输入通道数，输出通道数（卷积核的数量），卷积核宽和高，步长，填充
+conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding)
+```
+<br><br>
+
+池化层（Pooling）降低维度，从而减少计算量、减少内存消耗，并提升模型的鲁棒性  
+池化层通常位于卷积层之后，通过对卷积层输出的特征图进行下采样，保留最重要的特征信息，同时丢弃一些不重要的细节  
+* 多通道池化层计算，池化层对每个输入通道分别池化，而不是像卷积层那样将各个通道的输入相加，这意味着池化层的输出和输入的通道数量是相等的  
+* PyTorch池化API
+```
+nn.MaxPool2d(kernel_size=2, stride=2, padding=1)
+nn.AvgPool2d(kernel_size=2, stride=1, padding=0)
+```
+
+## 循环神经网络RNN
+循环神经网络是一种专门处理序列数据的神经网络，RNN具有循环结构，能够处理和记住前面时间步的信息，使其特别适用于时间序列数据或有时序依赖的任务。  
+自然语言处理（NLP）研究通过计算机算法来理解自然语言。  
+
+### 词嵌入层
+词嵌入层（Word Embedding Layer）是处理自然语言数据的关键组成部分，将输入的离散单词转换为连续的、低维的向量表示，从而使得神经网络能够理解和处理这些词汇的语义信息。  
+词嵌入层目的是将每个词映射为一个固定长度的向量（将文本转换为向量），这些向量能够捕捉词与词之间的语义关系。  
+<br><br>
+词嵌入层工作流程:
+* 初始化词向量：通常使用随机初始化或者加载预训练的词向量进行初始化
+* 输入索引：每个单词在词汇表中都有唯一的索引，文本先被分词然后每个单词被转换为相应的索引
+* 查找词向量：将单词索引映射为对应的词向量，这些词向量是一个低维稠密向量，表示该词的语义
+* 输入到RNN：词向量作为RNN的输入，RNN处理它们并根据上下文生成下一个序列的输出 
+```
+# 参数：词的数量，用多少维的向量来表示每个词
+embed = nn.Embedding(num_embeddings=10, embedding_dim=4)
+word_vec = embed(torch.tensor(word))
+```
+隐藏状态作用：
+* 记忆功能：隐藏状态像RNN的记忆，能够在不同的时间步之间传递信息。当一个新的输入进入网络，当前的隐藏状态会结合这个新输入来生成新的隐藏状态。
+* 上下文理解：由于隐藏状态携带了过去的信息，可以用于理解和生成与上下文相关的输出，这对语言模型、机器翻译等任务尤其重要。
+* 链接不同时间步：隐藏状态通过网络内部的循环连接将各个时间步连接起来，使得网络可以处理边长的序列数据。
+<br><br>
+
+RNN神经元内部是如何计算的  
+1. 计算隐藏状态：每个时间步的隐藏状态$h_t$是根据当前输入$x_t$和前一时刻的隐藏状态$h_{t-1}$计算的。
+$$
+h_t = \tanh\left(W_{ih} x_t + b_{ih} + W_{hh} h_{t-1} + b_{hh}\right)
+$$
+2. 计算当前时刻的输出：网络的输出$y_t$是当前时刻的隐藏状态经过一个线性变换得到的。
+$$
+y_t = W_{hy} h_t + b_y
+$$
+3. 词汇表映射：输出$y_t$是一个向量，该向量经过全连接层后输出得到最终预测结果$y_{pred}$，$y_{pred}$中每个元素代表当前时刻生成词汇表中某个词的得分（或概率，通过激活函数：如softmax）。词汇表有多少个词，$y_{pred}$就有多少个元素值，最大元素值对应的词就是当前时刻预测生成的词。
+<br><br>
+
+PyTorch RNN层的使用
+```
+# input_size：输入数据的维度，一般设为词向量的维度
+# hidden_size：隐藏层h的维度，也是当前层神经元的输出维度
+# num_layers: 隐藏层h的层数，默认为1
+RNN = nn.RNN(input_size, hidden_size，num_layers)
+
+# x的表示形式为[seq_len, batch, input_size]，即[句子的长度，batch的大小，词向量的维度]
+# h0的表示形式为[num_layers, batch, hidden_size]，即[隐藏层的层数，batch的大小，隐藏层h的维度]
+# output的表示形式与输入x类似，为[seq_len, batch, input_size]，即[句子的长度，batch的大小，输出向量的维度]
+# hn的表示形式与输入h0一样，为[num_layers, batch, hidden_size]，即[隐藏层的层数，batch的大，隐藏层h的维度]
+output, hn = RNN(x, h0)
+
+eg:
+# 词向量维度 128, 隐藏向量维度 256
+rnn = nn.RNN(input_size=128, hidden_size=256)
+# 第一个数字: 表示句子长度,也就是词语个数
+# 第二个数字: 批量个数，也就是句子的个数
+# 第三个数字: 词向量维度
+inputs = torch.randn(5, 32, 128)
+hn = torch.zeros(1, 32, 256)
+# 获取输出结果
+output, hn = rnn(inputs, hn)
+print("输出向量的维度：\n",output.shape)
+print("隐藏层输出的维度：\n",hn.shape)
+```
