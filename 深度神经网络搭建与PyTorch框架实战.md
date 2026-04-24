@@ -1,4 +1,4 @@
-# 神经网络与PyTorch框架
+# 神经网络与PyTorch框架（[学习视频地址](https://www.bilibili.com/video/BV1c5yrBcEEX/?spm_id_from=333.337.search-card.all.click&vd_source=d3285a2ba86bc368a3901aac90d388ea)）
 ## 张量
 Numpy数组是Python中用于存储和处理多维数值数据的基础结构，所有元素必须是同一种数据类型，支持高效的矩阵运算、统计计算（高效的CPU数值计算，丰富的科学计算函数库，无法GPU加速，没有自动微分，无法直接用于神经网络训练）。
 ```
