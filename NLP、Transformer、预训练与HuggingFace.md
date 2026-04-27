@@ -430,14 +430,113 @@ model = AutoModel.from_pretrained("google-bert/bert-base-chinese")
 from transformers import AutoTokenizer
 # 加载分词
 tokenizer = AutoTokenizer.from_pretrained("google-bert/bert-base-chinese")
-
 ```
 2. 使用Tokenizer  
 Transformers库中的Tokenizer包括如下功能：子词切分、编码映射、添加特殊Toke、截断与补齐、生成辅助输入（例如 attention mask）   
 常用API：  
-1. 分词
+    1. 分词（tokenize）  
+    ```
+    tokenizer.tokenize("我爱自然语言处理")
+    ```
+    2. token转ID（convert_tokens_to_ids）  
+    ```
+    ids = tokenizer.convert_tokens_to_ids(tokens)
+    ```
+    3. ID转token（convert_ids_to_tokens）  
+    ```
+    tokens = tokenizer.convert_ids_to_tokens(ids)
+    ```
+    4. 编码（encode）  
+    编码是将 tokenize + convert_tokens_to_ids 合并后的结果，通常还会自动添加特殊符号（如 [CLS] 和 [SEP]），除此之外，还支持padding、truncate等功能。
+    ```
+    ids = tokenizer.encode("我爱自然语言处理")
+    ```
+    5. 解码（decode）  
+    解码会将一个 token ID 序列还原为对应的原始文本（或接近的文本）。
+    ```
+    string = tokenizer.decode(ids)
+    ```
+    6. tokenizer()方法（即__call__）  
+    最推荐的接口，用于直接构造模型所需的输入。
+    ```
+    inputs = tokenizer(text)
 
+    ```
+3. Datasets库
+datasets是 Hugging Face 提供的一个轻量级数据处理库，专为自然语言处理任务设计，能够高效地支持模型训练流程中的数据加载与预处理操作。
+    1. 加载数据集
+    ```
+    from datasets import load_dataset
 
+    dataset = load_dataset(format, data_files=路径或字典)
+    ````
+    2. 查看数据集
+    ```
+    from datasets import load_dataset
+    dataset_dict = load_dataset('csv', data_files='data/raw/online_shopping_10_cats.csv')
+    dataset = dataset_dict["train"]
+    print(dataset[0])       # 单条样本
+    print(dataset[:3])      # 多条样本（注意返回结构）
+    print(dataset[0]['review'])        # 第一条样本的 review 字段
+    print(dataset[:3]['review'])       # 前三条样本的 review 字段列表
+    ```
+    3. 加载在线数据集
+    4. 预处理数据集  
+    删除列：  
+     `dataset = dataset.remove_columns(["cat"])`  
+    过滤行：  
+    `
+    dataset = dataset.filter(lambda x: x["review"] is not None and x["review"].strip() != "" and x["label"] in [0, 1])
+    `  
+    划分数据集：
+    ```
+    dataset_dict = dataset.train_test_split(test_size=0.2)
+    train_dataset = dataset_dict["train"]
+    test_dataset = dataset_dict["test"]
+    ```
+    5. 编码数据（重点）
+    可使用.map()方法与tokenizer配合，将原始文本批量编码为模型可用的输入格式（如 input_ids、attention_mask、token_type_ids等）。.map()是 datasets 中的核心方法之一，支持对整个数据集中的每一条样本或每一批样本进行统一处理，常用于文本编码（tokenizer）和数据字段转换。.map() 方法基本语法如下：
+    ```
+    dataset = dataset.map(function, batched=False, remove_columns=None)
 
+    # 具体示例
+    tokenizer = AutoTokenizer.from_pretrained("bert-base-chinese")
 
+    def batch_encode(batch):
+        # tokenizer既可以处理单个样本，也可以批量处理样本，所以这里单个样本处理和批量处理代码完全相同
+        inputs = tokenizer(batch['review'], padding='max_length', max_length=128, truncation=True)  # batch['review']是一个列表，是一批数据的所有review字段数据，dataset和tokenizer里面数据按列放在一个列表里面，即一个列表里面是这一批数据的数据
+        # 原始dataset中有label列，但是后续模型输入需要的是labels列，所以这里增加labels一列
+        inputs['labels'] = batch['label']
+        # tokenizer处理以后还会增加input_ids、attention_mask、token_type_ids字段
+        return inputs   # 这里返回的时候，如果有新的字段会直接加到dataset中，如果有旧的字段会直接覆盖（即更新为tokenizer处理后的值）
+    
+    # 单个样本和批量处理代码完全相同，只需要修改batched为False即可
+    # 后续喂给模型不需要label和reviw两列，可以直接删掉
+    train_dataset.map(batch_encode, batched=True, remove_columns=['label', 'review'])
+
+    ```
+    6、 保存数据集  
+    | 数据格式 | 保存方法 |  适用对象
+    | ----- | ----- | ----- |
+    | Arrow（二进制文件） | save_to_disk() |Dataset 或 DatasetDict
+    | CSV | to_csv() | 仅限 Dataset
+    | JSON | to_json() | 仅限 Dataset
+    7. 集成Dataloader  
+    - 过预处理的datasets.Dataset对象可以直接与PyTorch的DataLoader集成使用。虽然它并非继承自torch.utils.data.Dataset类，但由于实现了__len__()和__getitem__()这两个核心接口，因此能够被DataLoader正确识别并进行批量迭代。  
+    - 在使用前，需要通过.set_format()方法将指定字段转换为张量格式以适配模型输入。典型配置如下：
+    ```
+    train_dataset.set_format(
+    type="torch",  # 指定输出为PyTorch张量
+    columns=["input_ids", "attention_mask", "labels"]  # 需要转换的字段
+    )
+
+    # 训练集DataLoader
+    train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+    ```
+    注意：
+    - 该方法仅改变通过__getitem__()（即dataset[i]）访问样本时的返回格式，不会修改底层数据存储
+    - 通过columns指定的字段会在访问时自动转换为torch.Tensor类型（如果所有字段都需要就不用专门写column）
+    - 未通过columns指定的字段在访问时将被自动过滤
+
+    
 
