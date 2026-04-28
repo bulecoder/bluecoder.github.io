@@ -530,6 +530,9 @@ $$N = \frac{W - F + 2P}{S} + 1$$
 # 输入通道数，输出通道数（卷积核的数量），卷积核宽和高，步长，填充
 conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding)
 ```
+* 二维卷积层的参数量参数量通用计算公式（不考虑偏置项，因为通常偏置项很小可直接忽略）  
+`参数量 = 输入通道数(C_in) × 输出通道数(C_out) × 卷积核高(K_h) × 卷积核宽(K_w)`
+
 <br><br>
 
 池化层（Pooling）降低维度，从而减少计算量、减少内存消耗，并提升模型的鲁棒性  
@@ -540,6 +543,46 @@ conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding)
 nn.MaxPool2d(kernel_size=2, stride=2, padding=1)
 nn.AvgPool2d(kernel_size=2, stride=1, padding=0)
 ```
+
+## 残差神经网络ResNet
+残差连接 $y = \mathcal{F}(x, \{W_i\}) + \text{shortcut}(x)$，用于缓解梯度消失或梯度爆炸  
+- ResNet中一共有两种不同的ResNet Block。左边的用于浅层网络的ResNet叫做BasicBlock，右边的用于深层网络的ResNet叫做Bottleneck。即将两个的卷积层替换为，它通过1×1 conv来巧妙地缩减或扩张feature map维度（下面的例子中先用1×1的卷积降维，后面再用1×1的卷积来升维），从而使得我们的1×1 conv的filters数目不受上一层输入的影响，它的输出也不会影响到下一层。中间的卷积层首先在一个降维卷积层下减少了计算，然后在另一个的卷积层下做了还原。既保持了模型精度又减少了网络参数和计算量，节省了计算时间。
+- 这两个设计具有的参数量，可以看到Bottleneck的参数量不及BasicBlock的6%：
+```
+左侧：（3 X 3 X 64）X 64 +（3 X 3 X 64）X 64 = 73728
+右侧：（1 X 1 X 64）X 64 +（3 X 3 X 64）X 64 +（1 X 1 X 64）X 256 +（1 X 1 X 64）X 256 = 73728
+```
+![alt text](figure/深度神经网络搭建与PyTorch框架实战/ResNet_Block.png)
+- Shortcut有两种连接方式，输入和输出形状完全相同时使用恒等映射 $shortcut(x) = x$，输入和输出形状不同时使用投影映射 $shortcut(x) = W_s \cdot x$，其中 $W_s$ 通常是一个 `1×1`的卷积
+- BasicBlock一般用于浅层网络
+- Bottleneck一般用于深层网络
+- ResNetv1：
+    计算公式（假设恒等映射）：
+    $$
+    y = \mathcal{F}(x) + x
+    $$
+    其中
+    $$
+    \mathcal{F}(x) = W_2 \cdot \sigma\left(\text{BN}\left(W_1 \cdot x\right)\right)
+    $$
+    $\sigma$ 为 ReLU。最后 $y$ 再经过一个 ReLU（即 $y = \sigma(\mathcal{F}(x) + x)$）。
+    关键特点：
+    - 后激活（post-activation）：卷积后接 BN 和 ReLU。
+    - 加法后还有 ReLU：这会破坏恒等路径，因为加法结果中负值会被置零，导致信息无法直接跳过残差函数。
+- ResNetv2：
+    计算公式（恒等映射）：
+    $$
+    y = \mathcal{F}(x) + x
+    $$
+    其中
+    $$
+    \mathcal{F}(x) = W_2 \cdot \sigma\left(\text{BN}\left(W_1 \cdot \sigma\left(\text{BN}(x)\right)\right)\right)
+    $$
+    这里的 $\sigma$ 在卷积之前（预激活）。加法后直接输出 $y$，不再经过非线性。
+    关键特点：
+    - 预激活（pre-activation）：BN 和 ReLU 移到卷积之前。
+    - 加法后无 ReLU：shortcut 路径是完全恒等的，信息可以直接从输入传到输出，梯度可以无障碍回传。这使得可以训练超过 1000 层的网络。
+
 
 ## 循环神经网络RNN
 循环神经网络是一种专门处理序列数据的神经网络，RNN具有循环结构，能够处理和记住前面时间步的信息，使其特别适用于时间序列数据或有时序依赖的任务。  
