@@ -270,7 +270,7 @@ Transformer每个编码器层中，每个子层包括自注意力子层和前馈
     - 标准差计算（分母加一个小的常数，防止出现除以0的情况）
     - 缩放和平移（在学习归一化的基础上进行适当的调整，保证归一化不会限制模型的表示）
 
-#### 位置编码
+#### 位置编码([学习视频地址](https://www.bilibili.com/video/BV1aLCsBhE7i/?spm_id_from=333.1391.0.0&vd_source=d3285a2ba86bc368a3901aac90d388ea))
 为了捕捉词语之间的顺序，引入一个关键机制——位置编码（Positional Encoding），为每一个词引入一个表示其位置信息的向量，并将其与对应的词向量相加，作为模型输入的一部分。这样模型既能获取词义信息，也能感知其在句子中的位置，从而具备对基本语序的理解能力。
 - 绝对位置编号，越靠后的token位置编码就越大，直接与 词向量相加会造成数值倾斜，让模型更关注位置忽略词义。
 - 位置编码归一化为[0, 1]区间，相同位置的词在不同长度句子中的位置编码不一致
@@ -278,13 +278,51 @@ Transformer每个编码器层中，每个子层包括自注意力子层和前馈
 - 所有值都在[-1, 1]范围内，数值稳定
 - 编码方式固定、可预计算，无需训练
 - 相同位置的编码在不同句子中保持一致
-- 编码之间具有数学规律，便于模型在注意力机制中感知语句之间的相对位置关系
+- 编码之间具有数学规律，便于模型在注意力机制中感知语句之间的相对位置关系（如下式，即任意位置的pos+k的位置编码都可以由pos的位置编码进行固定的线性变换或者说一个旋转矩阵（可以看做顺时针旋转$\beta$）得到）
+$$
+R(-\beta) =
+\begin{bmatrix}
+\cos(-\beta) & -\sin(-\beta) \\
+\sin(-\beta) & \cos(-\beta)
+\end{bmatrix}
+=
+\begin{bmatrix}
+\cos(\beta) & \sin(\beta) \\
+-\sin(\beta) & \cos(\beta)
+\end{bmatrix}
+$$
+
+$$
+\begin{aligned}
+\begin{bmatrix}
+\cos(\beta) & \sin(\beta) \\
+-\sin(\beta) & \cos(\beta)
+\end{bmatrix}
+\begin{bmatrix}
+PE(pos,2i) \\
+PE(pos,2i+1)
+\end{bmatrix}
+&=
+\begin{bmatrix}
+PE(pos,2i)\cos(\beta) + PE(pos,2i+1)\sin(\beta) \\
+PE(pos,2i+1)\cos(\beta) - PE(pos,2i)\sin(\beta)
+\end{bmatrix} \\
+&=
+\begin{bmatrix}
+PE(pos+k,2i) \\
+PE(pos+k,2i+1)
+\end{bmatrix}
+\end{aligned}
+$$
+
 $$
 \begin{aligned}
 PE_{(pos, 2i)} &= \sin\left( \frac{pos}{10000^{\frac{2i}{d_{model}}}} \right) \\
 PE_{(pos, 2i+1)} &= \cos\left( \frac{pos}{10000^{\frac{2i}{d_{model}}}} \right)
 \end{aligned}
 $$
+- 位置编码可以表达多尺度的位置信息，低维度编码表示较近的位置信息（局部信息）低维度编码波长短，相邻位置之间微小的差异会导致位置编码很大的差异，精确表示相近的位置，高维度编码表示较远的位置信息（全局信息），相邻位置之间编码几乎相同，对小卫衣不敏感从而可以学习到全局特征
+![alt text](figure/NLP、Transformer、预训练与HuggingFace/正余弦位置编码热图.png)
 
 ![alt text](figure/NLP、Transformer、预训练与HuggingFace/Transformer编码器示意图.png)
 
