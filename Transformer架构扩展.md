@@ -486,14 +486,14 @@ $$
 - 可以通过线性插值扩展上下文窗口，不用重新预训练就能支持更长的文本；
 - 现在Llama、Qwen、Mistral、GPT-NeoX等几乎所有主流开源大模型，全部采用RoPE作为默认位置编码。
 
-### RoPE外推
-- 线性缩放（位置内插 Positional Interpolation）
-- NTK-aware Scaled RoPE
-- NTK-by-parts
-- YaRN
+### RoPE外推（[解读博客地址](https://samsz04.github.io/2025/11/11/Transformer3/)）
+- 线性缩放（位置内插 Positional Interpolation）：不进行外推而进行内插，将更长序列的位置索引线性缩放或者说压缩到预训练的原始范围长度
+    - 统一缩放了所有维度。低频信息的问题解决，可以处理更长的上下文，但是高频信息损失，牺牲了低频位置的“分辨率”
+- NTK-aware Scaled RoPE：与其缩放位置m，不如缩放（非线性）RoPE的基频（base，也就是旋转频率），即高频位置轻微缩放几乎不压缩，低频位置大幅缩放旋转速度降低，相当于对长距离位置进行了插值，这样推理的时候就不会出现OOD
+- YaRN（NTK-by-parts）：根本不应该插值高频维度，而应该只插值低频维度 。对高频维度保留原始 $\theta_d$，对低维频度应用$PI(\theta_d / s)$，在两者之间做平滑过渡。
 - Leaky ReRoPE 和 ReRoPE
 
-### 3. YaRN（Yet another RoPE extensioN）
+### 3. YaRN（Yet another RoPE extensioN）（[解读博客地址](https://samsz04.github.io/2025/11/11/Transformer3/)）
 **解决的核心问题**：RoPE线性插值扩展上下文时，会出现效果损失，需要大量微调，YaRN实现了「零微调/少量微调就能大幅扩展上下文窗口」。
 #### 原理：
 针对RoPE的旋转角度做了优化，对不同频率的位置编码做了差异化的缩放，解决了线性插值带来的低频信息损失问题。
