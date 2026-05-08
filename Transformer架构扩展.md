@@ -288,6 +288,11 @@ $$\text{LN}(x) = \gamma \cdot \frac{x - \mu}{\sqrt{\sigma^2 + \epsilon}} + \beta
 - 每次都要计算均值$\mu$，做中心化操作，增加了计算量；
 - 均值计算在长序列、大batch场景下，会引入额外的计算开销。
 
+### 辨析：Batch Norm 与 Layer Norm（[辨析文章地址](https://www.infyai.cn/2025/12/26/normalization-notes/)）
+- Batch Norm：把一个batch中同一通道的所有特征视为一个分布，并将其标准化（常用于CN）
+- Layer Norm：把一个样本的所有词义向量（特征）视为一个分布，并将其标准化（常用于NLP）
+
+
 ### 2. RMSNorm（均方根归一化）
 **解决的核心问题**：简化LayerNorm的计算，提升速度，同时保持训练稳定性。
 #### 原理：
@@ -512,6 +517,7 @@ $$
 - 是现在长上下文大模型的主流扩展方案，被Llama 3、Qwen2等模型广泛采用。
 
 ---
+
 
 # 三、2025年主流大模型架构标配（一句话总结）
 现在所有主流开源大模型（Llama 3、Qwen2、Mistral等）的架构，已经形成了统一的标准：
