@@ -1,6 +1,6 @@
 # 后训练（Post-training）
 后训练包括微调、对齐和瘦身（蒸馏剪枝等）
-## 监督微调（指令微调:Instructional fine-tuning，SFT:Supervised fine-tuning）（[Hugging Face Transformer实战，包括微调、低精度训练和分布式训练](https://www.bilibili.com/video/BV1ma4y1g791?vd_source=d3285a2ba86bc368a3901aac90d388ea&spm_id_from=333.788.videopod.sections)）
+## 监督微调（指令微调:Instructional fine-tuning，SFT:Supervised fine-tuning）（[Hugging Face Transformer实战，包括微调、低精度训练和分布式训练学习视频地址](https://www.bilibili.com/video/BV1ma4y1g791?vd_source=d3285a2ba86bc368a3901aac90d388ea&spm_id_from=333.788.videopod.sections)）
 SFT是有监督微调，包括全量微调和部分参数微调，PEFT是部分参数微调，也叫作参数高效微调，LORA是PEFT中的一种，还有很多变体  
 
 经过海量数据预训练后的语言模型虽然具备了大量的“知识”，但是由于其训练时的目标仅是进行下一个词的预测，因此不能够理解并遵循人类自然语言形式的指令。指令微调主要包括三个步骤，定义指令和输出要求、数据调整成指令与对应响应的形式、微调操作（训练方式与预训练相似，指令微调目标函数只针对输出部分计算损失）  
