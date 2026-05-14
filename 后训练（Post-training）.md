@@ -1,4 +1,4 @@
-# 后训练（Post-training）
+# 后训练（Post-training）（[大语言模型从理论到实践教材](https://intro-llm.github.io/chapter/LLM-TAP-v2.pdf)）
 后训练包括微调、对齐和瘦身（蒸馏剪枝等）
 ## 监督微调（指令微调:Instructional fine-tuning，SFT:Supervised fine-tuning）（[Hugging Face Transformer实战，包括微调、低精度训练和分布式训练学习视频地址](https://www.bilibili.com/video/BV1ma4y1g791?vd_source=d3285a2ba86bc368a3901aac90d388ea&spm_id_from=333.788.videopod.sections)）
 SFT是有监督微调，包括全量微调和部分参数微调，PEFT是部分参数微调，也叫作参数高效微调，LORA是PEFT中的一种，还有很多变体  
@@ -74,3 +74,46 @@ $$
 - 增加上下文窗口的微调：采用直接的方式，即通过使用一个更大的上下文窗口来微调现有的预训练 Transformer，以适应长文本建模需求。
 - 位置编码：改进的位置编码，如 ALiBi、LeX等能够实现一定程度上的长度外推。这意味着它们可以在小的上下文窗口上进行训练，在大的上下文窗口上进行推理。
 - 插值法：将超出上下文窗口的位置编码通过插值法压缩到预训练的上下文窗口中。
+
+## 强化学习
+当前大语言模型中的强化学习技术主要沿着两个方向演进：其一是基于人类反馈的强化学习RLHF，通过奖励模型对生成文本进行整体质量评估，使模型能自主探索更优的回复策略，并使得模型回复与人类偏好和价值观对齐。典型如 ChatGPT 等对话系统，通过人类偏好数据训练奖励模型，结合近端策略优化（Proximal Policy Optimization，PPO）算法实现对齐优化。其二是面向深度推理的强化学习框架，以 OpenAI 的 O 系列模型和 DeepSeek的 R 系列为代表，通过答案校验引导模型进行多步推理。这类方法将复杂问题分解为长思维链（Chain-of-Thought）的决策序列，在数学证明、代码生成等场景中展现出超越监督学习的推理能力。两类方法都强调对生成文本的整体质量把控，前者侧重人类价值对齐，后者专注复杂问题求解，共同构成大语言模型能力进化的核心驱动力。
+
+### 基于人类反馈的强化学习流程（RLHF）
+基于人类反馈的强化学习主要分为奖励模型训练和近端策略优化两个步骤。  
+
+奖励模型通常采用基于 Transformer 结构的预训练语言模型。在奖励模型中，移除最后一个非
+嵌入层，并在最终的 Transformer 层上叠加一个额外的线性层。无论输入的是何种文本，奖励模型
+都能为文本序列中的最后一个标记分配一个标量奖励值，样本质量越好，奖励值越大。  
+
+
+![alt text](figure/后训练（Post-training）/近端策略优化算法的流程.png)
+
+近端策略优化设计以下四个模型：
+1. 策略模型（Policy Model），生成模型回复。
+2. 奖励模型（Reward Model），输出奖励分数来评估回复质量的好坏。
+3. 评论模型（Critic Model），预测回复的好坏，可以在训练过程中实时调整模型，选择对未来累积收益最大的行为。
+4. 参考模型（Reference Model），提供了一个 SFT 模型的备份，使模型不会出现过于极端的变化。
+
+#### PPO（近端策略优化，Proximal Policy Optimization）
+里面有一个clip裁剪，将重要性采样比率（r = π_new / π_old）压制在一个安全范围  
+通常需要加载4个模型：Actor, Critic, Reward, Reference（Actor 和 Critic 是需要参数优化的）
+[学习视频地址](https://www.bilibili.com/video/BV1Qy6nB5Emw?spm_id_from=333.788.videopod.sections&vd_source=d3285a2ba86bc368a3901aac90d388ea)
+
+#### GRPO(组内相对策略优化，Group Relative Policy Optimization)
+核心思想：消除对Critic模型和复杂优势函数估计的依赖，通过对同一提示的多个采样回答进行组内归一化，来充当优势函数的基线。  
+无需Critic模型，通常需要加载3个模型：Policy (Actor), Reward, Reference（只优化Actor）
+[学习视频地址](https://www.bilibili.com/video/BV18U6nBrE2t?spm_id_from=333.788.videopod.sections&vd_source=d3285a2ba86bc368a3901aac90d388ea)
+
+#### GSPO（组序列策略优化，Group Sequence Policy Optimization）
+GRPO的问题，在大规模训练或处理长逻辑链（Long-CoT）时，它极易导致模型性能突然衰退甚至完全崩塌，即模型崩溃（Model Collapse）。根本原因在于GRPO 奖励与优化的粒度不匹配。
+将优化粒度从GRPO的Token级提升到Sequence（序列）级，从而在大规模、长序列和MoE模型的训练中实现了更稳定、更高效的性能。序列级（Sequence-level）重要性采样，序列级裁剪（Sequence-level Clipping）
+[学习视频地址](https://www.bilibili.com/video/BV1KL9tBsEYU/?spm_id_fr om=333.337.search-card.all.click&vd_source=d3285a2ba86bc368a3901aac90d388ea)
+
+#### DPO（Direct Preference Optimization）
+它的训练数据不再是“回答-分数”，而是简单的“输入-好的输出-差的输出”三元组。DPO 基于 Bradley-Terry 模型，将偏好转化为概率比较问题。其损失函数 L_DPO(θ) 的目标是最大化好回答的概率，同时最小化坏回答的概率，并利用参考模型进行约束  
+需要维护两个模型：Actor 和  Reference
+[学习视频地址](https://www.bilibili.com/video/BV18U6nBrEus?spm_id_from=333.788.videopod.sections&vd_source=d3285a2ba86bc368a3901aac90d388ea)
+
+
+
+
